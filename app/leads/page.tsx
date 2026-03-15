@@ -1,5 +1,6 @@
 import AppLayout from "@/components/AppLayout";
 import DataTable from "@/components/DataTable";
+import QuickLeadForm from "@/components/QuickLeadForm";
 import { leads } from "@/lib/mockData";
 
 export default function LeadsPage() {
@@ -10,6 +11,8 @@ export default function LeadsPage() {
           <h1 className="page-title">Leads / Enquiries</h1>
           <button className="rounded-md bg-brand-700 px-3 py-2 text-white">+ Quick Lead</button>
         </div>
+
+        <QuickLeadForm />
 
         <div className="card grid gap-3 p-4 md:grid-cols-3">
           <input className="rounded-md border px-3 py-2" placeholder="Customer mobile" />
