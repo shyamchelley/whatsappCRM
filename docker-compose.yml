@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL (production database) ──────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://crm:${POSTGRES_PASSWORD:-changeme}@postgres:5432/crm
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN}
+      WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID}
+      WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      SITE_TOKEN: ${SITE_TOKEN}
+      WIDGET_TITLE: ${WIDGET_TITLE:-Contact Us}
+      WIDGET_SUBTITLE: ${WIDGET_SUBTITLE:-We reply within 1 hour}
+    volumes:
+      # Persist SQLite if ever used in production fallback
+      - backend_data:/app/data
+    command: >
+      sh -c "node -e \"require('./knexfile')\" &&
+             npx knex migrate:latest --knexfile knexfile.js &&
+             npx knex seed:run --knexfile knexfile.js &&
+             node server.js"
+
+  # ── Frontend (React + Nginx) ───────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+  backend_data:
