@@ -1,12 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('./whatsapp.controller');
 const { auth } = require('../../middleware/auth');
+const { getStatus, sendMessage, getMessages } = require('./whatsapp.client');
 
-// GET /api/whatsapp/:leadId/messages — Full conversation thread
-router.get('/:leadId/messages', auth, controller.getMessages);
+// GET /api/whatsapp/status — connection status + QR info
+router.get('/status', auth, (req, res) => {
+  res.json({ status: getStatus() });
+});
 
-// POST /api/whatsapp/:leadId/send — Send a WhatsApp message
-router.post('/:leadId/send', auth, controller.sendMessage);
+// GET /api/whatsapp/:leadId/messages
+router.get('/:leadId/messages', auth, async (req, res, next) => {
+  try { res.json(await getMessages(req.params.leadId)); } catch (err) { next(err); }
+});
+
+// POST /api/whatsapp/:leadId/send
+router.post('/:leadId/send', auth, async (req, res, next) => {
+  try {
+    const msg = await sendMessage(req.params.leadId, req.body.message, req.user.id);
+    res.json(msg);
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

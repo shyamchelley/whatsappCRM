@@ -4,6 +4,7 @@ import { getStages, createStage, updateStage, deleteStage, reorderStages } from 
 import client from '../api/client';
 import { setCredentials } from '../store/authSlice';
 import { addToast } from '../store/uiSlice';
+import { getSocket } from '../socket';
 
 /* ── Colour swatches for stages ── */
 const SWATCHES = [
@@ -332,11 +333,90 @@ function WidgetSection() {
   );
 }
 
+/* ── WhatsApp connection section ── */
+function WhatsAppSection() {
+  const [status, setStatus]   = useState('loading');
+  const [qrUrl, setQrUrl]     = useState(null);
+
+  useEffect(() => {
+    // Fetch initial status
+    client.get('/whatsapp/status').then(({ data }) => setStatus(data.status)).catch(() => setStatus('disconnected'));
+
+    // Listen for real-time updates
+    const socket = getSocket();
+    if (!socket) return;
+
+    function onQr({ qr }) { setQrUrl(qr); setStatus('qr'); }
+    function onStatus({ status: s }) { setStatus(s); if (s === 'ready') setQrUrl(null); }
+
+    socket.on('whatsapp:qr', onQr);
+    socket.on('whatsapp:status', onStatus);
+    return () => { socket.off('whatsapp:qr', onQr); socket.off('whatsapp:status', onStatus); };
+  }, []);
+
+  const statusMeta = {
+    loading:     { color: 'bg-gray-100 text-gray-500',   dot: 'bg-gray-400',   label: 'Checking…' },
+    disconnected:{ color: 'bg-red-50 text-red-700',      dot: 'bg-red-500',    label: 'Disconnected' },
+    qr:          { color: 'bg-yellow-50 text-yellow-700', dot: 'bg-yellow-400', label: 'Scan QR Code' },
+    connecting:  { color: 'bg-blue-50 text-blue-700',    dot: 'bg-blue-400',   label: 'Connecting…' },
+    ready:       { color: 'bg-green-50 text-green-700',  dot: 'bg-green-500',  label: 'Connected' },
+  };
+  const meta = statusMeta[status] || statusMeta.disconnected;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-lg">
+      <h2 className="text-base font-semibold text-gray-900 mb-1">WhatsApp Connection</h2>
+      <p className="text-xs text-gray-400 mb-5">
+        Connect your WhatsApp number by scanning the QR code below. No business account or API key needed.
+      </p>
+
+      {/* Status badge */}
+      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-6 ${meta.color}`}>
+        <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+        {meta.label}
+      </div>
+
+      {/* QR code */}
+      {status === 'qr' && qrUrl && (
+        <div className="flex flex-col items-center gap-3 mt-2">
+          <img src={qrUrl} alt="WhatsApp QR Code" className="w-56 h-56 rounded-xl border border-gray-200 shadow-sm" />
+          <p className="text-xs text-gray-500 text-center">
+            Open WhatsApp on your phone → <strong>Linked Devices</strong> → <strong>Link a Device</strong> → scan this code
+          </p>
+        </div>
+      )}
+
+      {status === 'ready' && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
+          <span className="text-2xl">✅</span>
+          <div>
+            <p className="text-sm font-medium text-green-800">WhatsApp is connected!</p>
+            <p className="text-xs text-green-600 mt-0.5">Inbound messages will automatically create leads. You can reply from any Lead's detail page.</p>
+          </div>
+        </div>
+      )}
+
+      {(status === 'disconnected' || status === 'loading') && !qrUrl && status !== 'ready' && (
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-500">
+          {status === 'loading' ? 'Checking connection…' : 'Restart the server to get a new QR code.'}
+        </div>
+      )}
+
+      {status === 'connecting' && (
+        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-sm text-blue-600">
+          Authenticating with WhatsApp, please wait…
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main Settings Page ── */
 const TABS = [
   { id: 'profile',   label: '👤 Profile' },
   { id: 'pipeline',  label: '🏗️ Pipeline Stages' },
   { id: 'widget',    label: '🔌 Widget Embed' },
+  { id: 'whatsapp',  label: '💬 WhatsApp' },
 ];
 
 export default function SettingsPage() {
@@ -357,9 +437,10 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {tab === 'profile'  && <ProfileSection />}
-      {tab === 'pipeline' && <PipelineSection />}
-      {tab === 'widget'   && <WidgetSection />}
+      {tab === 'profile'   && <ProfileSection />}
+      {tab === 'pipeline'  && <PipelineSection />}
+      {tab === 'widget'    && <WidgetSection />}
+      {tab === 'whatsapp'  && <WhatsAppSection />}
     </div>
   );
 }

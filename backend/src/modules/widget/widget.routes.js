@@ -23,8 +23,8 @@ router.post('/lead', widgetLimiter, async (req, res, next) => {
   try {
     const { name, phone, email, message, site_token } = req.body;
 
-    // Allow any token in development for easy testing
-    if (process.env.NODE_ENV === 'production' && site_token !== process.env.SITE_TOKEN) {
+    // Enforce token in production only; skip check in development for easy testing
+    if (process.env.NODE_ENV !== 'development' && site_token !== process.env.SITE_TOKEN) {
       return res.status(403).json({ error: 'Invalid site token' });
     }
     if (!phone || !phone.trim()) {
