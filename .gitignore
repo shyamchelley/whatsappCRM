@@ -18,6 +18,11 @@ frontend/dist-widget/
 backend/dev.sqlite3
 backend/*.sqlite3
 
+# WhatsApp session & cache (generated at runtime)
+backend/data/
+backend/.wwebjs_cache/
+backend/.wwebjs_auth/
+
 # Logs
 *.log
 logs/

@@ -16,7 +16,7 @@ router.get('/:leadId/messages', auth, async (req, res, next) => {
 // POST /api/whatsapp/:leadId/send
 router.post('/:leadId/send', auth, async (req, res, next) => {
   try {
-    const msg = await sendMessage(req.params.leadId, req.body.message, req.user.id);
+    const msg = await sendMessage(req.params.leadId, req.body.text, req.user.id);
     res.json(msg);
   } catch (err) { next(err); }
 });
